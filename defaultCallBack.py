@@ -1,3 +1,5 @@
+import concurrent
+
 import webHookAction
 from ActionCallBack import IActionCallBack
 
@@ -12,6 +14,9 @@ def isAllContains(list1, list2):
     return all(item in list2 for item in list1)
 
 class DeFalutCallBack(IActionCallBack):
+    def __init__(self):
+        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+
     def getGesture(self, actions):
         # actions中有值如 1,2
         # 匹配all_gesture_dict中的每个key，如果value列表中包含actions，则返回key
@@ -27,7 +32,8 @@ class DeFalutCallBack(IActionCallBack):
         gesture = self.getGesture(actions)
         if gesture:
             print('识别到手势:', gesture)
-            webHookAction.send_gesture(gesture)
+
+            self.executor.submit(webHookAction.send_gesture,gesture)
             return True
         elif len(actions)>max_len+5:
             return True
