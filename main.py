@@ -1,3 +1,5 @@
+import time
+
 from Cv2Camera import Cv2Camera
 from defaultCallBack import DeFalutCallBack
 from handGesture import Gesture
@@ -14,7 +16,11 @@ if __name__ == '__main__':
 
     # 收集数据
     # ges.collectData()
+    # print("马上开始微调")
+    # 等待5秒
+    # time.sleep(5)
+    # print("开始训练微调")
     # 训练
-    # ges.train()
+    # ges.FineTuning(50)
     # 评估
     ges.evaluation()

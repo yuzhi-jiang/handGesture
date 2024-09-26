@@ -1,4 +1,5 @@
 import cv2
+import keras
 import numpy as np
 import os
 
@@ -51,7 +52,7 @@ class Gesture():
                 if not flag:
                     print("Ignoring empty camera frame.")
                     continue
-                frame = self.detector.runDetec(frame)
+                frame = self.detector.drawBone(frame)
 
                 if frame_num == 0:
                     cv2.putText(frame, 'Start collection {}'.format(action), (120, 200),
@@ -118,6 +119,28 @@ class Gesture():
         print('\nTest accuracy:{}, loss: {}'.format(test_acc, test_loss))
 
         model.save(self.model_path)
+
+    # 模型微调，基于当前模型继续训练
+    def FineTuning(self,epochs=50):
+        # 1. 加载模型
+        model = tf.keras.models.load_model(self.model_path)
+        # 2. 加载数据
+        X_train, X_test, y_train, y_test = self.loadDate()
+
+        optimizer = keras.optimizers.Adam()  # 或者您所用的其他优化器
+
+        # 重新编译模型，使用新创建的优化器
+        model.compile(optimizer=optimizer,
+                      loss='sparse_categorical_crossentropy',
+                      metrics=['accuracy'])
+
+        # 3. 微调模型
+        history = model.fit(X_train, y_train, epochs=epochs, validation_data=(X_test, y_test))
+        test_loss, test_acc = model.evaluate(X_test, y_test, verbose=2)
+        print('\nTest accuracy:{}, loss: {}'.format(test_acc, test_loss))
+
+        model.save(self.model_path)
+
 
     def evaluation(self):
 
