@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import os
 
+from ActionCallBack import IActionCallBack
 from ICamera import ICamera
 from bone import BoneDetector
 import tensorflow as tf
@@ -10,9 +11,15 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Flatten
 from camera import Camera
 
+# 已经训练的动作
+actions = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'good', 'not good', 'ok',
+            "sotp"]
 
 class Gesture():
-    def __init__(self,myCamera: ICamera) -> None:
+    def __init__(self,myCamera: ICamera, doActionCallBack: IActionCallBack) -> None:
+        #已经做的动作 存放下标
+        self.doActions = []
+        self.doActionCallBack=doActionCallBack
         self.camera = myCamera
         self.action_type = 'static'  # ['static', 'dynamic']
         self.model_name = 'dAction.h5'
@@ -20,9 +27,7 @@ class Gesture():
         self.model_path = os.path.join('Model', self.model_name)
         if not os.path.exists(self.data_path):
             os.makedirs(self.data_path)
-        self.actions = np.array(
-            ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'good', 'not good', 'ok',
-             "sotp"])
+        self.actions = np.array(actions)
         self.label_map = {label: num for num, label in enumerate(self.actions)}
 
         self.action_num = 300  # 每种动作收集的数据个数
@@ -97,7 +102,7 @@ class Gesture():
         model.add(Dense(256, activation='relu'))
         model.add(Dense(128, activation='relu'))
         model.add(Dense(32, activation='relu'))
-        model.add(Dense(self.actions.shape[0], activation='softmax'))
+        model.add(Dense(len(self.actions), activation='softmax'))
         model.compile(optimizer='Adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
         return model
 
@@ -135,21 +140,28 @@ class Gesture():
                     [[res.x, res.y, res.z] for res in self.detector.results.multi_hand_landmarks[0].landmark]).flatten()
                 x_train = np.reshape(x_train, (1, -1))
                 y_pre = model.predict(x_train)
+                index=np.argmax(y_pre[0])
                 act = self.actions[np.argmax(y_pre[0])]
                 if act == self.pre_action:
                     self.action_index += 1
                 else:
                     self.pre_action = act
                     self.action_index = 0
+                    self.doActions.append(index)
+                    self.tryDoActionsCallback()
                 cv2.putText(frame, 'Action is: {}, index: {}'.format(act, self.action_index), (10, 30),
                             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 3, cv2.LINE_AA)
-
             cv2.imshow("DAction", frame)
 
             # frame_num = lm_data.shape[0] - 1
             if cv2.waitKey(50) & 0xFF == 27:
                 break
 
+
+    def tryDoActionsCallback(self):
+        flag = self.doActionCallBack.doAction(self.doActions)
+        if flag:
+            self.doActions.clear()
 
     def getImg(self):
         flag, img_array = self.camera.getImage()  # 获取图像数组
